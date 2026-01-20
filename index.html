@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Raees Pharmacy – Inventory & Expiration Tracker</title>
+
+<style>
+  :root{
+    --bg:#0b1220; --card:#101a31; --text:#e9eefc; --muted:#aab6da; --line:#223055;
+    --ok:#4ade80; --warn:#fbbf24; --bad:#fb7185; --btn:#3b82f6; --btn2:#22c55e; --btn3:#ef4444;
+  }
+  body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(160deg,#070b14,#0b1220 55%,#0e1730);color:var(--text);}
+  header{max-width:1200px;margin:0 auto;padding:18px 16px 6px;}
+  h1{margin:0 0 6px;font-size:22px}
+  .sub{color:var(--muted);font-size:13px;line-height:1.4}
+  .wrap{max-width:1200px;margin:0 auto;padding:12px 16px 28px;}
+  .grid{display:grid;grid-template-columns:1.05fr .95fr;gap:14px}
+  @media(max-width:950px){.grid{grid-template-columns:1fr}}
+  .card{background:rgba(16,26,49,.92);border:1px solid rgba(34,48,85,.7);border-radius:14px;box-shadow:0 10px 30px rgba(0,0,0,.35);padding:14px}
+  label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}
+  input,select,textarea{width:100%;box-sizing:border-box;background:#0b1326;border:1px solid rgba(34,48,85,.9);color:var(--text);border-radius:10px;padding:10px;font-size:14px;outline:none}
+  textarea{min-height:70px;resize:vertical}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+  @media(max-width:560px){.row,.row3{grid-template-columns:1fr}}
+  .btns{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;align-items:center}
+  button{border:none;border-radius:12px;padding:10px 12px;font-weight:750;font-size:14px;cursor:pointer}
+  .primary{background:var(--btn);color:white}
+  .success{background:var(--btn2);color:#05210e}
+  .danger{background:var(--btn3);color:white}
+  .ghost{background:transparent;border:1px solid rgba(34,48,85,.9);color:var(--text)}
+  .toolbar{display:flex;flex-wrap:wrap;gap:10px;align-items:end;justify-content:space-between;margin-bottom:10px}
+  .pill{padding:5px 10px;border-radius:999px;font-size:12px;border:1px solid rgba(34,48,85,.9);color:var(--muted)}
+  table{width:100%;border-collapse:collapse;border-radius:12px;overflow:hidden}
+  th,td{padding:10px 8px;text-align:left;border-bottom:1px solid rgba(34,48,85,.65);font-size:13px;vertical-align:top}
+  th{color:#cfe0ff;font-size:12px;letter-spacing:.02em;text-transform:uppercase}
+  tr:hover td{background:rgba(11,19,38,.55)}
+  .status{font-weight:900}
+  .s-ok{color:var(--ok)} .s-warn{color:var(--warn)} .s-bad{color:var(--bad)}
+  .small{color:var(--muted);font-size:12px}
+  .nowrap{white-space:nowrap}
+  .actions button{padding:7px 10px;border-radius:10px;font-size:12px}
+
+  /* Scanner modal */
+  .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px;z-index:9999}
+  .modal.open{display:flex}
+  .modal-card{width:min(720px,100%);background:#0b1326;border:1px solid rgba(34,48,85,.9);border-radius:14px;overflow:hidden}
+  .modal-head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(34,48,85,.65)}
+  .modal-title{font-weight:800}
+  #scanner{position:relative;background:#000}
+  #scanner video{width:100%;height:auto;display:block}
+  .hint{padding:10px 12px;color:var(--muted);font-size:12px;line-height:1.4}
+  .scan-line{position:absolute;left:8%;right:8%;top:45%;height:2px;background:rgba(251,191,36,.9);box-shadow:0 0 10px rgba(251,191,36,.8);}
+
+  /* Audit print layout */
+  @media print{
+    body{background:#fff;color:#000}
+    header,.no-print{display:none !important}
+    .print-area{display:block !important}
+    .print-area *{color:#000}
+    .print-card{border:none;box-shadow:none;background:#fff}
+    table{border:1px solid #000}
+    th,td{border-bottom:1px solid #999}
+  }
+</style>
+</head>
+
+<body>
+<header>
+  <h1>Raees Pharmacy</h1>
+  <div class="sub">
+    Medication Inventory • NDC • Barcode • Lot • Expiration • Audit Print • Monthly EXP PDF
+  </div>
+</header>
+
+<div class="wrap">
+  <div class="grid">
+
+    <!-- LEFT: Form + Reports -->
+    <div class="card no-print">
+      <div class="toolbar">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <span class="pill" id="countPill">0 items</span>
+          <span class="pill" id="expSoonPill">0 exp soon</span>
+          <span class="pill" id="expiredPill">0 expired</span>
+        </div>
+        <div style="display:flex;gap:10px;align-items:end;flex-wrap:wrap">
+          <div>
+            <div class="small">EXP warning (days)</div>
+            <input id="warnDays" type="number" min="1" value="90" style="width:110px" />
+          </div>
+          <div>
+            <div class="small">Low stock threshold default</div>
+            <input id="lowDefault" type="number" min="0" value="5" style="width:110px" />
+          </div>
+        </div>
+      </div>
+
+      <form id="medForm">
+        <input type="hidden" id="editId" value="" />
+
+        <label>Medication Name</label>
+        <input id="name" placeholder="e.g., Atorvastatin" required />
+
+        <div class="row">
+          <div>
+            <label>NDC (preferred 11-digit with dashes)</label>
+            <input id="ndc" placeholder="00093-7424-56" />
+          </div>
+          <div>
+            <label>Location / Shelf / Fridge / CII safe</label>
+            <input id="loc" placeholder="Fast mover / Refrigerator / C-II Safe" />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Barcode / UPC</label>
+            <input id="barcode" placeholder="Scan or type barcode" />
+            <div class="btns" style="margin-top:8px">
+              <button class="primary" type="button" id="scanBtn">Scan Barcode (Camera)</button>
+              <button class="ghost" type="button" id="clearBarcodeBtn">Clear Barcode</button>
+            </div>
+            <div class="small">Camera scan works best on HTTPS (GitHub Pages/Netlify).</div>
+          </div>
+          <div>
+            <label>Lot Number</label>
+            <input id="lot" placeholder="Lot #" />
+          </div>
+        </div>
+
+        <div class="row3">
+          <div>
+            <label>Expiration Date</label>
+            <input id="exp" type="date" required />
+          </div>
+          <div>
+            <label>Quantity On Hand</label>
+            <input id="qty" type="number" min="0" required />
+          </div>
+          <div>
+            <label>Low Stock Alert</label>
+            <input id="low" type="number" min="0" placeholder="e.g., 5" />
+          </div>
+        </div>
+
+        <label>Notes (optional)</label>
+        <textarea id="notes" placeholder="Wholesaler, package size, invoice notes, etc."></textarea>
+
+        <div class="btns">
+          <button class="success" type="submit" id="saveBtn">Save Item</button>
+          <button class="ghost" type="button" id="resetBtn">Clear</button>
+          <button class="ghost" type="button" id="exportBtn">Export CSV</button>
+          <button class="danger" type="button" id="wipeBtn" title="Deletes all locally saved inventory">Delete All</button>
+        </div>
+      </form>
+
+      <hr style="border:0;border-top:1px solid rgba(34,48,85,.65);margin:14px 0">
+
+      <h3 style="margin:0 0 10px">Monthly Expiration Report</h3>
+      <div class="row">
+        <div>
+          <label>Month</label>
+          <select id="reportMonth"></select>
+        </div>
+        <div>
+          <label>Year</label>
+          <select id="reportYear"></select>
+        </div>
+      </div>
+      <div class="btns">
+        <button class="primary" type="button" id="pdfBtn">Generate Monthly EXP PDF</button>
+        <button class="ghost" type="button" id="auditPrintBtn">Audit-Ready Print (Optum/CVS/Medicaid)</button>
+      </div>
+      <div class="small">
+        PDF includes: medication, NDC, barcode, lot, exp date, qty, location.  
+        Audit print includes a header + run date + signature lines.
+      </div>
+    </div>
+
+    <!-- RIGHT: Inventory Table -->
+    <div class="card no-print">
+      <div class="toolbar">
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <input id="search" placeholder="Search: name / NDC / barcode / lot / location…" />
+          <select id="filter">
+            <option value="all">All</option>
+            <option value="expSoon">Expiring soon</option>
+            <option value="expired">Expired</option>
+            <option value="lowStock">Low stock</option>
+          </select>
+        </div>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
+          <button class="ghost" type="button" id="sortBtn">Sort: Exp</button>
+        </div>
+      </div>
+
+      <div style="overflow:auto">
+        <table>
+          <thead>
+            <tr>
+              <th>Drug</th>
+              <th class="nowrap">NDC</th>
+              <th class="nowrap">Barcode</th>
+              <th class="nowrap">Lot</th>
+              <th class="nowrap">Qty</th>
+              <th class="nowrap">Exp</th>
+              <th>Status</th>
+              <th class="nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="tbody"></tbody>
+        </table>
+      </div>
+      <div class="small" id="emptyMsg" style="margin-top:10px">No items yet — add your first product.</div>
+    </div>
+
+  </div>
+
+  <!-- PRINT AREA (Audit-ready) -->
+  <div class="print-area" style="display:none">
+    <div class="card print-card">
+      <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+        <div>
+          <div style="font-size:22px;font-weight:900">Raees Pharmacy</div>
+          <div style="font-size:13px">Inventory / Expiration Audit Report</div>
+          <div style="font-size:12px;margin-top:6px" id="printMeta"></div>
+        </div>
+        <div style="text-align:right;font-size:12px">
+          <div><strong>Run Date:</strong> <span id="printRunDate"></span></div>
+          <div><strong>Filter:</strong> <span id="printFilter"></span></div>
+        </div>
+      </div>
+
+      <hr style="border:0;border-top:1px solid #000;margin:10px 0">
+
+      <table>
+        <thead>
+          <tr>
+            <th>Medication</th>
+            <th>NDC</th>
+            <th>Barcode</th>
+            <th>Lot</th>
+            <th>Exp</th>
+            <th>Qty</th>
+            <th>Location</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="printTbody"></tbody>
+      </table>
+
+      <div style="margin-top:16px;font-size:12px">
+        <div><strong>Reviewed by (Name):</strong> ________________________________</div>
+        <div style="margin-top:8px"><strong>Signature:</strong> ________________________________  <strong>Date:</strong> ____________</div>
+        <div style="margin-top:10px">Notes/Corrective Actions: ________________________________________________________________</div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- QuaggaJS for barcode scanning -->
+<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+
+<!-- jsPDF + autotable for PDF reports -->
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.5.31/dist/jspdf.plugin.autotable.min.js"></script>
+
+<script>
+/*** Storage + helpers ***/
+const KEY = "raees_pharmacy_inventory_v2";
+const $ = (id)=>document.getElementById(id);
+let sortMode = "exp"; // exp or name
+
+function load(){ try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; } }
+function save(items){ localStorage.setItem(KEY, JSON.stringify(items)); }
+
+function esc(s){
+  return String(s ?? "")
+    .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
+    .replaceAll('"',"&quot;").replaceAll("'","&#039;");
+}
+function todayISO(){
+  const d=new Date(); d.setHours(0,0,0,0);
+  return d.toISOString().slice(0,10);
+}
+function daysLeft(exp){
+  const t=new Date(todayISO()); t.setHours(0,0,0,0);
+  const e=new Date(exp); e.setHours(0,0,0,0);
+  return Math.round((e - t)/(1000*60*60*24));
+}
+function statusFor(item, warnDays){
+  const d = daysLeft(item.exp);
+  if (Number.isFinite(d) && d < 0) return {label:"EXPIRED", cls:"s-bad", d};
+  if (Number.isFinite(d) && d <= warnDays) return {label:"EXP SOON", cls:"s-warn", d};
+  return {label:"OK", cls:"s-ok", d};
+}
+function lowStock(item){
+  const low = item.low === "" || item.low == null ? null : Number(item.low);
+  if (low == null || !Number.isFinite(low)) return false;
+  return Number(item.qty || 0) <= low;
+}
+
+/*** Render table ***/
+function render(){
+  const warnDays = Math.max(1, Number($("warnDays").value || 90));
+  const q = $("search").value.trim().toLowerCase();
+  const filter = $("filter").value;
+
+  let items = load();
+
+  // stats pills
+  const expSoonCount = items.filter(x => statusFor(x, warnDays).label === "EXP SOON").length;
+  const expiredCount = items.filter(x => statusFor(x, warnDays).label === "EXPIRED").length;
+
+  $("countPill").textContent = `${items.length} items`;
+  $("expSoonPill").textContent = `${expSoonCount} exp soon`;
+  $("expiredPill").textContent = `${expiredCount} expired`;
+
+  // sort
+  items.sort((a,b)=>{
+    if(sortMode==="name") return (a.name||"").localeCompare(b.name||"");
+    return (a.exp||"").localeCompare(b.exp||"");
+  });
+
+  // filter + search
+  items = items.filter(x=>{
+    const hay = `${x.name} ${x.ndc} ${x.barcode} ${x.lot} ${x.loc} ${x.notes}`.toLowerCase();
+    if(q && !hay.includes(q)) return false;
+
+    const st = statusFor(x, warnDays);
+    if(filter==="expired") return st.label==="EXPIRED";
+    if(filter==="expSoon") return st.label==="EXP SOON";
+    if(filter==="lowStock") return lowStock(x);
+    return true;
+  });
+
+  const tb = $("tbody");
+  tb.innerHTML = "";
+  $("emptyMsg").style.display = load().length === 0 ? "block" : "none";
+
+  for(const item of items){
+    const st = statusFor(item, warnDays);
+    const low = lowStock(item);
+    const lowTag = low ? " / LOW" : "";
+    const dTxt = Number.isFinite(st.d) ? (st.d<0 ? `${Math.abs(st.d)} days ago` : `${st.d} days left`) : "";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>
+        <div><strong>${esc(item.name)}</strong></div>
+        <div class="small">${esc(item.loc||"")}</div>
+      </td>
+      <td class="nowrap">${esc(item.ndc||"")}</td>
+      <td class="nowrap">${esc(item.barcode||"")}</td>
+      <td class="nowrap">${esc(item.lot||"")}</td>
+      <td class="nowrap"><strong>${Number(item.qty||0)}</strong></td>
+      <td class="nowrap">${esc(item.exp||"")}<div class="small">${esc(dTxt)}</div></td>
+      <td class="status ${st.cls}">${st.label}${lowTag}</td>
+      <td class="actions nowrap">
+        <button class="ghost" onclick="editItem('${item.id}')">Edit</button>
+        <button class="ghost" onclick="useOne('${item.id}')">-1</button>
+        <button class="danger" onclick="deleteItem('${item.id}')">Delete</button>
+      </td>
+    `;
+    tb.appendChild(tr);
+  }
+}
+
+/*** CRUD ***/
+function upsert(item){
+  const items = load();
+  const idx = items.findIndex(x=>x.id===item.id);
+  if(idx>=0) items[idx]=item; else items.push(item);
+  save(items);
+}
+function resetForm(){
+  $("editId").value="";
+  $("medForm").reset();
+  $("saveBtn").textContent="Save Item";
+  $("low").value="";
+}
+function editItem(id){
+  const item = load().find(x=>x.id===id);
+  if(!item) return;
+  $("editId").value=item.id;
+  $("name").value=item.name||"";
+  $("ndc").value=item.ndc||"";
+  $("barcode").value=item.barcode||"";
+  $("lot").value=item.lot||"";
+  $("exp").value=item.exp||"";
+  $("qty").value=item.qty ?? "";
+  $("low").value=item.low ?? "";
+  $("loc").value=item.loc||"";
+  $("notes").value=item.notes||"";
+  $("saveBtn").textContent="Update Item";
+  window.scrollTo({top:0,behavior:"smooth"});
+}
+function deleteItem(id){
+  if(!confirm("Delete this item?")) return;
+  save(load().filter(x=>x.id!==id));
+  render();
+}
+function useOne(id){
+  const items = load();
+  const i = items.findIndex(x=>x.id===id);
+  if(i<0) return;
+  items[i].qty = Math.max(0, Number(items[i].qty||0) - 1);
+  save(items);
+  render();
+}
+
+/*** CSV Export ***/
+function exportCSV(){
+  const items=load();
+  const cols=["name","ndc","barcode","lot","exp","qty","low","loc","notes"];
+  const header=cols.join(",");
+  const lines=items.map(it => cols.map(c => csvCell(it[c])).join(","));
+  const csv=[header, ...lines].join("\n");
+  const blob=new Blob([csv],{type:"text/csv;charset=utf-8"});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement("a");
+  a.href=url; a.download="Raees_Pharmacy_Inventory.csv";
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+}
+function csvCell(v){
+  const s=String(v ?? "");
+  if(/[",\n]/.test(s)) return `"${s.replaceAll('"','""')}"`;
+  return s;
+}
+
+/*** Barcode scanner (Quagga) ***/
+const modal = document.createElement("div");
+modal.className="modal";
+modal.innerHTML = `
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="modal-title">Scan Barcode</div>
+      <button class="ghost" id="closeScan">Close</button>
+    </div>
+    <div id="scanner">
+      <div class="scan-line"></div>
+    </div>
+    <div class="hint">
+      Tip: fill the screen with the barcode, hold steady, good lighting.
+      If it won’t scan, type the barcode manually.
+    </div>
+  </div>
+`;
+document.body.appendChild(modal);
+
+let scanning=false;
+
+function startScanner(){
+  modal.classList.add("open");
+  if(scanning) return;
+
+  const target = document.querySelector("#scanner");
+  target.innerHTML = `<div class="scan-line"></div>`; // reset container
+
+  Quagga.init({
+    inputStream: {
+      type: "LiveStream",
+      target: target,
+      constraints: {
+        facingMode: "environment",
+        width: { ideal: 1280 },
+        height: { ideal: 720 }
+      }
+    },
+    decoder: {
+      readers: [
+        "upc_reader","upc_e_reader",
+        "ean_reader","ean_8_reader",
+        "code_128_reader","code_39_reader","code_93_reader",
+        "itf_reader"
+      ]
+    },
+    locate: true
+  }, function(err){
+    if(err){
+      alert("Camera/Scanner error: " + err.message + "\n\nIf you opened this from a file, try hosting on HTTPS (GitHub Pages/Netlify).");
+      stopScanner();
+      return;
+    }
+    Quagga.start();
+    scanning=true;
+  });
+
+  Quagga.onDetected(onDetected);
+}
+
+function onDetected(result){
+  const code = result?.codeResult?.code;
+  if(!code) return;
+
+  // stop quickly to avoid multiple hits
+  stopScanner();
+  $("barcode").value = code;
+
+  // If NDC is blank, some products embed NDC in barcode but not always.
+  // We leave NDC manual.
+}
+
+function stopScanner(){
+  if(scanning){
+    try{ Quagga.offDetected(onDetected); }catch(e){}
+    try{ Quagga.stop(); }catch(e){}
+    scanning=false;
+  }
+  modal.classList.remove("open");
+}
+
+document.addEventListener("click",(e)=>{
+  if(e.target?.id==="scanBtn") startScanner();
+  if(e.target?.id==="closeScan") stopScanner();
+});
+
+/*** PDF Monthly Expiration Report ***/
+function fillMonthYear(){
+  const m = $("reportMonth"), y = $("reportYear");
+  const now = new Date();
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  monthNames.forEach((name, idx)=>{
+    const opt=document.createElement("option");
+    opt.value=idx; opt.textContent=name;
+    m.appendChild(opt);
+  });
+  m.value = now.getMonth();
+
+  const thisYear = now.getFullYear();
+  for(let yy=thisYear-2; yy<=thisYear+2; yy++){
+    const opt=document.createElement("option");
+    opt.value=yy; opt.textContent=yy;
+    y.appendChild(opt);
+  }
+  y.value = thisYear;
+}
+
+function generateMonthlyPDF(){
+  const month = Number($("reportMonth").value);
+  const year = Number($("reportYear").value);
+
+  const items = load().filter(it=>{
+    if(!it.exp) return false;
+    const d = new Date(it.exp);
+    return d.getFullYear()===year && d.getMonth()===month;
+  }).sort((a,b)=>(a.exp||"").localeCompare(b.exp||""));
+
+  const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+  const title = `Raees Pharmacy – Expiration Report (${monthNames[month]} ${year})`;
+
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({orientation:"portrait", unit:"pt", format:"letter"});
+
+  doc.setFont("helvetica","bold");
+  doc.setFontSize(14);
+  doc.text("Raees Pharmacy", 40, 40);
+  doc.setFontSize(12);
+  doc.text("Monthly Expiration Report", 40, 60);
+  doc.setFont("helvetica","normal");
+  doc.setFontSize(10);
+  doc.text(`Month: ${monthNames[month]} ${year}`, 40, 78);
+  doc.text(`Generated: ${new Date().toLocaleString()}`, 40, 92);
+
+  const rows = items.map(it => ([
+    it.name || "",
+    it.ndc || "",
+    it.barcode || "",
+    it.lot || "",
+    it.exp || "",
+    String(Number(it.qty||0)),
+    it.loc || ""
+  ]));
+
+  doc.autoTable({
+    startY: 110,
+    head: [["Medication","NDC","Barcode","Lot","Exp","Qty","Location"]],
+    body: rows.length ? rows : [["(No items expiring this month)","","","","","",""]],
+    styles: { fontSize: 8, cellPadding: 4 },
+    headStyles: { fillColor: [20, 30, 60] }
+  });
+
+  // signature line
+  const endY = doc.lastAutoTable.finalY + 20;
+  doc.setFontSize(10);
+  doc.text("Reviewed by (Name): ________________________________", 40, endY);
+  doc.text("Signature: __________________________  Date: ____________", 40, endY + 16);
+
+  const fname = `Raees_Pharmacy_Expiration_Report_${year}_${String(month+1).padStart(2,"0")}.pdf`;
+  doc.save(fname);
+}
+
+/*** Audit-ready print ***/
+function buildAuditPrint(){
+  const warnDays = Math.max(1, Number($("warnDays").value || 90));
+  const q = $("search").value.trim().toLowerCase();
+  const filter = $("filter").value;
+
+  let items = load();
+
+  // apply current search/filter (same logic as screen)
+  items = items.filter(x=>{
+    const hay = `${x.name} ${x.ndc} ${x.barcode} ${x.lot} ${x.loc} ${x.notes}`.toLowerCase();
+    if(q && !hay.includes(q)) return false;
+    const st = statusFor(x, warnDays);
+    if(filter==="expired") return st.label==="EXPIRED";
+    if(filter==="expSoon") return st.label==="EXP SOON";
+    if(filter==="lowStock") return lowStock(x);
+    return true;
+  }).sort((a,b)=>(a.exp||"").localeCompare(b.exp||""));
+
+  $("printRunDate").textContent = new Date().toLocaleString();
+  $("printFilter").textContent = filter + (q ? ` + search("${q}")` : "");
+  $("printMeta").textContent = `Includes NDC / Barcode / Lot / Exp / Qty / Location. Warning window: ${warnDays} days.`;
+
+  const ptb = $("printTbody");
+  ptb.innerHTML = "";
+
+  for(const it of items){
+    const st = statusFor(it, warnDays);
+    const low = lowStock(it);
+    const lowTag = low ? " / LOW" : "";
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td>${esc(it.name||"")}</td>
+      <td>${esc(it.ndc||"")}</td>
+      <td>${esc(it.barcode||"")}</td>
+      <td>${esc(it.lot||"")}</td>
+      <td>${esc(it.exp||"")}</td>
+      <td>${Number(it.qty||0)}</td>
+      <td>${esc(it.loc||"")}</td>
+      <td>${esc(st.label + lowTag)}</td>
+    `;
+    ptb.appendChild(tr);
+  }
+
+  if(!items.length){
+    const tr = document.createElement("tr");
+    tr.innerHTML = `<td colspan="8">(No items match current filter/search)</td>`;
+    ptb.appendChild(tr);
+  }
+  // show print area then print
+  document.querySelector(".print-area").style.display="block";
+  window.print();
+  // hide print area after
+  setTimeout(()=>{ document.querySelector(".print-area").style.display="none"; }, 500);
+}
+
+/*** Events ***/
+$("medForm").addEventListener("submit",(e)=>{
+  e.preventDefault();
+  const id = $("editId").value || `m_${Date.now()}`;
+  const lowVal = $("low").value === "" ? $("lowDefault").value : $("low").value;
+
+  const item = {
+    id,
+    name: $("name").value.trim(),
+    ndc: $("ndc").value.trim(),
+    barcode: $("barcode").value.trim(),
+    lot: $("lot").value.trim(),
+    exp: $("exp").value,
+    qty: Number($("qty").value || 0),
+    low: lowVal === "" ? "" : Number(lowVal),
+    loc: $("loc").value.trim(),
+    notes: $("notes").value.trim()
+  };
+
+  if(!item.name) return alert("Medication name is required.");
+  if(!item.exp) return alert("Expiration date is required.");
+  upsert(item);
+  resetForm();
+  render();
+});
+
+$("resetBtn").addEventListener("click", resetForm);
+$("exportBtn").addEventListener("click", exportCSV);
+
+$("wipeBtn").addEventListener("click", ()=>{
+  if(!confirm("Delete ALL saved inventory from this device?")) return;
+  localStorage.removeItem(KEY);
+  resetForm();
+  render();
+});
+
+$("search").addEventListener("input", render);
+$("filter").addEventListener("change", render);
+$("warnDays").addEventListener("input", render);
+
+$("sortBtn").addEventListener("click", ()=>{
+  sortMode = (sortMode==="exp") ? "name" : "exp";
+  $("sortBtn").textContent = sortMode==="exp" ? "Sort: Exp" : "Sort: Name";
+  render();
+});
+
+$("clearBarcodeBtn").addEventListener("click", ()=>{ $("barcode").value=""; });
+
+$("pdfBtn").addEventListener("click", generateMonthlyPDF);
+$("auditPrintBtn").addEventListener("click", buildAuditPrint);
+
+/*** init ***/
+fillMonthYear();
+render();
+</script>
+
+</body>
+</html>
