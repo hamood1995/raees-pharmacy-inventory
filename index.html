@@ -403,6 +403,39 @@ function yymmddToISODate(yymmdd){
   const iso = `${year}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
   return iso;
 }
+  /* ===== DS9208 / keyboard-wedge GS1 auto-parse ===== */
+
+const barcodeInput = document.getElementById("barcode");
+
+barcodeInput.addEventListener("input", () => {
+  const value = barcodeInput.value;
+  if (!value || value.length < 10) return;
+
+  const gs1 = parseGS1(value);
+
+  if (gs1.gtin) {
+    document.getElementById("gtin").value = gs1.gtin;
+
+    const ndc = gtinToNdc(gs1.gtin);
+    if (ndc) document.getElementById("ndc").value = ndc;
+  }
+
+  if (gs1.lot) {
+    document.getElementById("lot").value = gs1.lot;
+  }
+
+  if (gs1.expYYMMDD) {
+    const iso = yymmddToISODate(gs1.expYYMMDD);
+    if (iso) document.getElementById("exp").value = iso;
+  }
+
+  // Auto-set low stock if empty
+  const lowField = document.getElementById("low");
+  if (lowField && lowField.value === "") {
+    lowField.value = document.getElementById("lowDefault").value;
+  }
+});
+
 
 // Your bottle example: GTIN 00323155704013 maps to NDC 23155-704-01
 function gtinToNdc(gtin14){
