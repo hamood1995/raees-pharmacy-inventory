@@ -45,15 +45,15 @@
   /* Scanner modal */
   .modal{position:fixed;inset:0;background:rgba(0,0,0,.6);display:none;align-items:center;justify-content:center;padding:16px;z-index:9999}
   .modal.open{display:flex}
-  .modal-card{width:min(720px,100%);background:#0b1326;border:1px solid rgba(34,48,85,.9);border-radius:14px;overflow:hidden}
+  .modal-card{width:min(760px,100%);background:#0b1326;border:1px solid rgba(34,48,85,.9);border-radius:14px;overflow:hidden}
   .modal-head{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-bottom:1px solid rgba(34,48,85,.65)}
-  .modal-title{font-weight:800}
-  #scanner{position:relative;background:#000}
-  #scanner video{width:100%;height:auto;display:block}
+  .modal-title{font-weight:900}
+  #scanVideo{width:100%;height:auto;display:block;background:#000}
   .hint{padding:10px 12px;color:var(--muted);font-size:12px;line-height:1.4}
   .scan-line{position:absolute;left:8%;right:8%;top:45%;height:2px;background:rgba(251,191,36,.9);box-shadow:0 0 10px rgba(251,191,36,.8);}
+  .videoWrap{position:relative}
 
-  /* Audit print layout */
+  /* Print layout */
   @media print{
     body{background:#fff;color:#000}
     header,.no-print{display:none !important}
@@ -70,7 +70,7 @@
 <header>
   <h1>Raees Pharmacy</h1>
   <div class="sub">
-    Medication Inventory • NDC • Barcode • Lot • Expiration • Audit Print • Monthly EXP PDF
+    Inventory • NDC • GS1 2D (DataMatrix) • Lot • Expiration • Audit Print • Monthly EXP PDF
   </div>
 </header>
 
@@ -91,7 +91,7 @@
             <input id="warnDays" type="number" min="1" value="90" style="width:110px" />
           </div>
           <div>
-            <div class="small">Low stock threshold default</div>
+            <div class="small">Default low stock</div>
             <input id="lowDefault" type="number" min="0" value="5" style="width:110px" />
           </div>
         </div>
@@ -101,12 +101,63 @@
         <input type="hidden" id="editId" value="" />
 
         <label>Medication Name</label>
-        <input id="name" placeholder="e.g., Atorvastatin" required />
+        <input id="name" placeholder="(Optional if GS1 scan fills NDC/lot/exp first)" />
 
         <div class="row">
           <div>
-            <label>NDC (preferred 11-digit with dashes)</label>
-            <input id="ndc" placeholder="00093-7424-56" />
+            <label>NDC (auto-filled from GS1 GTIN when possible)</label>
+            <input id="ndc" placeholder="23155-704-01" />
+          </div>
+          <div>
+            <label>Wholesaler / Vendor</label>
+            <select id="vendor">
+              <option value="">Select vendor</option>
+              <option>Kinray</option>
+              <option>Anda</option>
+              <option>Alpine Health</option>
+              <option>EzriRx</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Barcode / GS1 code (auto-filled)</label>
+            <input id="barcode" placeholder="Scan 2D square code or 1D UPC" />
+            <div class="btns" style="margin-top:8px">
+              <button class="primary" type="button" id="scanBtn">Scan Bottle (GS1 2D + 1D)</button>
+              <button class="ghost" type="button" id="clearScanBtn">Clear Scan</button>
+            </div>
+            <div class="small">
+              Tip: scan the <strong>square 2D DataMatrix</strong> to auto-fill LOT + EXP.
+              (Camera requires HTTPS — GitHub Pages is perfect.)
+            </div>
+          </div>
+          <div>
+            <label>GTIN (from AI 01, auto-filled)</label>
+            <input id="gtin" placeholder="00323155704013" />
+          </div>
+        </div>
+
+        <div class="row3">
+          <div>
+            <label>Lot Number (AI 10, auto-filled)</label>
+            <input id="lot" placeholder="Lot #" />
+          </div>
+          <div>
+            <label>Expiration Date (AI 17, auto-filled)</label>
+            <input id="exp" type="date" />
+          </div>
+          <div>
+            <label>Quantity On Hand</label>
+            <input id="qty" type="number" min="0" required />
+          </div>
+        </div>
+
+        <div class="row">
+          <div>
+            <label>Low Stock Alert</label>
+            <input id="low" type="number" min="0" placeholder="e.g., 5" />
           </div>
           <div>
             <label>Location / Shelf / Fridge / CII safe</label>
@@ -114,45 +165,14 @@
           </div>
         </div>
 
-        <div class="row">
-          <div>
-            <label>Barcode / UPC</label>
-            <input id="barcode" placeholder="Scan or type barcode" />
-            <div class="btns" style="margin-top:8px">
-              <button class="primary" type="button" id="scanBtn">Scan Barcode (Camera)</button>
-              <button class="ghost" type="button" id="clearBarcodeBtn">Clear Barcode</button>
-            </div>
-            <div class="small">Camera scan works best on HTTPS (GitHub Pages/Netlify).</div>
-          </div>
-          <div>
-            <label>Lot Number</label>
-            <input id="lot" placeholder="Lot #" />
-          </div>
-        </div>
-
-        <div class="row3">
-          <div>
-            <label>Expiration Date</label>
-            <input id="exp" type="date" required />
-          </div>
-          <div>
-            <label>Quantity On Hand</label>
-            <input id="qty" type="number" min="0" required />
-          </div>
-          <div>
-            <label>Low Stock Alert</label>
-            <input id="low" type="number" min="0" placeholder="e.g., 5" />
-          </div>
-        </div>
-
         <label>Notes (optional)</label>
-        <textarea id="notes" placeholder="Wholesaler, package size, invoice notes, etc."></textarea>
+        <textarea id="notes" placeholder="Invoice notes, package size, etc."></textarea>
 
         <div class="btns">
           <button class="success" type="submit" id="saveBtn">Save Item</button>
           <button class="ghost" type="button" id="resetBtn">Clear</button>
           <button class="ghost" type="button" id="exportBtn">Export CSV</button>
-          <button class="danger" type="button" id="wipeBtn" title="Deletes all locally saved inventory">Delete All</button>
+          <button class="danger" type="button" id="wipeBtn">Delete All</button>
         </div>
       </form>
 
@@ -171,11 +191,7 @@
       </div>
       <div class="btns">
         <button class="primary" type="button" id="pdfBtn">Generate Monthly EXP PDF</button>
-        <button class="ghost" type="button" id="auditPrintBtn">Audit-Ready Print (Optum/CVS/Medicaid)</button>
-      </div>
-      <div class="small">
-        PDF includes: medication, NDC, barcode, lot, exp date, qty, location.  
-        Audit print includes a header + run date + signature lines.
+        <button class="ghost" type="button" id="auditPrintBtn">Audit-Ready Print</button>
       </div>
     </div>
 
@@ -183,7 +199,7 @@
     <div class="card no-print">
       <div class="toolbar">
         <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-          <input id="search" placeholder="Search: name / NDC / barcode / lot / location…" />
+          <input id="search" placeholder="Search: name / NDC / GTIN / barcode / lot / vendor…" />
           <select id="filter">
             <option value="all">All</option>
             <option value="expSoon">Expiring soon</option>
@@ -201,11 +217,12 @@
           <thead>
             <tr>
               <th>Drug</th>
+              <th class="nowrap">Vendor</th>
               <th class="nowrap">NDC</th>
-              <th class="nowrap">Barcode</th>
+              <th class="nowrap">GTIN</th>
               <th class="nowrap">Lot</th>
-              <th class="nowrap">Qty</th>
               <th class="nowrap">Exp</th>
+              <th class="nowrap">Qty</th>
               <th>Status</th>
               <th class="nowrap">Actions</th>
             </tr>
@@ -218,7 +235,7 @@
 
   </div>
 
-  <!-- PRINT AREA (Audit-ready) -->
+  <!-- PRINT AREA -->
   <div class="print-area" style="display:none">
     <div class="card print-card">
       <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
@@ -239,8 +256,9 @@
         <thead>
           <tr>
             <th>Medication</th>
+            <th>Vendor</th>
             <th>NDC</th>
-            <th>Barcode</th>
+            <th>GTIN</th>
             <th>Lot</th>
             <th>Exp</th>
             <th>Qty</th>
@@ -261,8 +279,11 @@
 
 </div>
 
-<!-- QuaggaJS for barcode scanning -->
-<script src="https://cdn.jsdelivr.net/npm/quagga@0.12.1/dist/quagga.min.js"></script>
+<!-- GS1/2D + 1D Scanner (ZXing) -->
+<script type="module">
+  import { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } from "https://cdn.jsdelivr.net/npm/@zxing/browser@0.1.5/+esm";
+  window.__ZXING__ = { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType };
+</script>
 
 <!-- jsPDF + autotable for PDF reports -->
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -270,13 +291,12 @@
 
 <script>
 /*** Storage + helpers ***/
-const KEY = "raees_pharmacy_inventory_v2";
+const KEY = "raees_pharmacy_inventory_v3";
 const $ = (id)=>document.getElementById(id);
 let sortMode = "exp"; // exp or name
 
 function load(){ try { return JSON.parse(localStorage.getItem(KEY) || "[]"); } catch { return []; } }
 function save(items){ localStorage.setItem(KEY, JSON.stringify(items)); }
-
 function esc(s){
   return String(s ?? "")
     .replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;")
@@ -287,6 +307,7 @@ function todayISO(){
   return d.toISOString().slice(0,10);
 }
 function daysLeft(exp){
+  if(!exp) return NaN;
   const t=new Date(todayISO()); t.setHours(0,0,0,0);
   const e=new Date(exp); e.setHours(0,0,0,0);
   return Math.round((e - t)/(1000*60*60*24));
@@ -303,6 +324,102 @@ function lowStock(item){
   return Number(item.qty || 0) <= low;
 }
 
+/*** GS1 parsing (handles AI 01/10/17 + common cases) ***/
+const GS = String.fromCharCode(29); // group separator
+function normalizeScanText(text){
+  if(!text) return "";
+  // Remove symbology identifiers like ]d2 ]C1
+  if(text.startsWith("]")) return text.slice(3);
+  return text;
+}
+// Parse GS1 element strings for common AIs on drug bottles:
+// (01) GTIN fixed 14
+// (17) EXP fixed 6 (YYMMDD)
+// (10) LOT variable up to 20 (terminated by GS or end)
+// (21) SERIAL variable (optional)
+function parseGS1(text){
+  const raw = normalizeScanText(text);
+
+  // Some decoders include GS as actual ASCII 29; others show it as \u001d already.
+  // We handle both by keeping it as character.
+  let s = raw;
+
+  // If no parentheses AIs present, assume AI stream format.
+  // We'll read sequential AIs by known patterns.
+  const out = { raw: raw };
+
+  function readFixed(ai, len){
+    if(!s.startsWith(ai)) return null;
+    const v = s.slice(ai.length, ai.length + len);
+    s = s.slice(ai.length + len);
+    return v;
+  }
+  function readVar(ai, maxLen){
+    if(!s.startsWith(ai)) return null;
+    s = s.slice(ai.length);
+    let end = s.indexOf(GS);
+    if(end === -1) end = s.length;
+    const v = s.slice(0, Math.min(end, maxLen));
+    s = s.slice(Math.min(end, maxLen));
+    // consume GS if present
+    if(s.startsWith(GS)) s = s.slice(1);
+    return v;
+  }
+
+  // Try to extract in common order: 01, 17, 10, 21
+  // But real-world may be 01 + 10 + 17 etc, so loop.
+  let safety = 0;
+  while(s.length && safety++ < 50){
+    if(s.startsWith("01")){
+      out.gtin = readFixed("01", 14);
+      continue;
+    }
+    if(s.startsWith("17")){
+      out.expYYMMDD = readFixed("17", 6);
+      continue;
+    }
+    if(s.startsWith("10")){
+      out.lot = readVar("10", 20);
+      continue;
+    }
+    if(s.startsWith("21")){
+      out.serial = readVar("21", 20);
+      continue;
+    }
+    // unknown AI -> break to avoid infinite loop
+    break;
+  }
+  return out;
+}
+
+function yymmddToISODate(yymmdd){
+  if(!yymmdd || yymmdd.length !== 6) return "";
+  const yy = Number(yymmdd.slice(0,2));
+  const mm = Number(yymmdd.slice(2,4));
+  const dd = Number(yymmdd.slice(4,6));
+  if(!Number.isFinite(yy)||!Number.isFinite(mm)||!Number.isFinite(dd)) return "";
+  // GS1 uses 00-99; assume 20xx for 00-79, 19xx for 80-99 (rare). Adjust if needed.
+  const year = (yy <= 79) ? (2000 + yy) : (1900 + yy);
+  const iso = `${year}-${String(mm).padStart(2,"0")}-${String(dd).padStart(2,"0")}`;
+  return iso;
+}
+
+// Your bottle example: GTIN 00323155704013 maps to NDC 23155-704-01
+function gtinToNdc(gtin14){
+  const g = String(gtin14 || "").replace(/\D/g,"");
+  if(g.length !== 14) return "";
+  // Common pharma pattern: "003" + NDC10 + check digit (last digit)
+  if(g.startsWith("003")){
+    const ndc10 = g.slice(3, 13); // 10 digits
+    // Format 5-3-2 (works for your example)
+    return `${ndc10.slice(0,5)}-${ndc10.slice(5,8)}-${ndc10.slice(8,10)}`;
+  }
+  // Fallback: store raw 10 digits (strip leading 0 + check)
+  // Not always correct for every manufacturer, but better than blank.
+  const maybe = g.slice(1, 11);
+  return maybe ? maybe : "";
+}
+
 /*** Render table ***/
 function render(){
   const warnDays = Math.max(1, Number($("warnDays").value || 90));
@@ -314,7 +431,6 @@ function render(){
   // stats pills
   const expSoonCount = items.filter(x => statusFor(x, warnDays).label === "EXP SOON").length;
   const expiredCount = items.filter(x => statusFor(x, warnDays).label === "EXPIRED").length;
-
   $("countPill").textContent = `${items.length} items`;
   $("expSoonPill").textContent = `${expSoonCount} exp soon`;
   $("expiredPill").textContent = `${expiredCount} expired`;
@@ -327,7 +443,7 @@ function render(){
 
   // filter + search
   items = items.filter(x=>{
-    const hay = `${x.name} ${x.ndc} ${x.barcode} ${x.lot} ${x.loc} ${x.notes}`.toLowerCase();
+    const hay = `${x.name} ${x.vendor} ${x.ndc} ${x.gtin} ${x.barcode} ${x.lot} ${x.loc} ${x.notes}`.toLowerCase();
     if(q && !hay.includes(q)) return false;
 
     const st = statusFor(x, warnDays);
@@ -350,14 +466,15 @@ function render(){
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>
-        <div><strong>${esc(item.name)}</strong></div>
+        <div><strong>${esc(item.name||"")}</strong></div>
         <div class="small">${esc(item.loc||"")}</div>
       </td>
+      <td class="nowrap">${esc(item.vendor||"")}</td>
       <td class="nowrap">${esc(item.ndc||"")}</td>
-      <td class="nowrap">${esc(item.barcode||"")}</td>
+      <td class="nowrap">${esc(item.gtin||"")}</td>
       <td class="nowrap">${esc(item.lot||"")}</td>
-      <td class="nowrap"><strong>${Number(item.qty||0)}</strong></td>
       <td class="nowrap">${esc(item.exp||"")}<div class="small">${esc(dTxt)}</div></td>
+      <td class="nowrap"><strong>${Number(item.qty||0)}</strong></td>
       <td class="status ${st.cls}">${st.label}${lowTag}</td>
       <td class="actions nowrap">
         <button class="ghost" onclick="editItem('${item.id}')">Edit</button>
@@ -387,7 +504,9 @@ function editItem(id){
   if(!item) return;
   $("editId").value=item.id;
   $("name").value=item.name||"";
+  $("vendor").value=item.vendor||"";
   $("ndc").value=item.ndc||"";
+  $("gtin").value=item.gtin||"";
   $("barcode").value=item.barcode||"";
   $("lot").value=item.lot||"";
   $("exp").value=item.exp||"";
@@ -415,7 +534,7 @@ function useOne(id){
 /*** CSV Export ***/
 function exportCSV(){
   const items=load();
-  const cols=["name","ndc","barcode","lot","exp","qty","low","loc","notes"];
+  const cols=["name","vendor","ndc","gtin","barcode","lot","exp","qty","low","loc","notes"];
   const header=cols.join(",");
   const lines=items.map(it => cols.map(c => csvCell(it[c])).join(","));
   const csv=[header, ...lines].join("\n");
@@ -432,86 +551,126 @@ function csvCell(v){
   return s;
 }
 
-/*** Barcode scanner (Quagga) ***/
+/*** Scanner modal (ZXing) ***/
 const modal = document.createElement("div");
 modal.className="modal";
 modal.innerHTML = `
   <div class="modal-card">
     <div class="modal-head">
-      <div class="modal-title">Scan Barcode</div>
+      <div class="modal-title">Scan Bottle (GS1 2D + 1D)</div>
       <button class="ghost" id="closeScan">Close</button>
     </div>
-    <div id="scanner">
+    <div class="videoWrap">
+      <video id="scanVideo" muted playsinline></video>
       <div class="scan-line"></div>
     </div>
     <div class="hint">
-      Tip: fill the screen with the barcode, hold steady, good lighting.
-      If it won’t scan, type the barcode manually.
+      Scan the <strong>square 2D DataMatrix</strong> to fill <strong>GTIN/NDC + LOT + EXP</strong> automatically.
+      Good light + steady hands helps.
     </div>
   </div>
 `;
 document.body.appendChild(modal);
 
-let scanning=false;
+let codeReader = null;
+let scanStream = null;
+let scanning = false;
 
-function startScanner(){
+async function startScanner(){
   modal.classList.add("open");
-  if(scanning) return;
 
-  const target = document.querySelector("#scanner");
-  target.innerHTML = `<div class="scan-line"></div>`; // reset container
-
-  Quagga.init({
-    inputStream: {
-      type: "LiveStream",
-      target: target,
-      constraints: {
-        facingMode: "environment",
-        width: { ideal: 1280 },
-        height: { ideal: 720 }
-      }
-    },
-    decoder: {
-      readers: [
-        "upc_reader","upc_e_reader",
-        "ean_reader","ean_8_reader",
-        "code_128_reader","code_39_reader","code_93_reader",
-        "itf_reader"
-      ]
-    },
-    locate: true
-  }, function(err){
-    if(err){
-      alert("Camera/Scanner error: " + err.message + "\n\nIf you opened this from a file, try hosting on HTTPS (GitHub Pages/Netlify).");
-      stopScanner();
-      return;
-    }
-    Quagga.start();
-    scanning=true;
+  // Wait until ZXing module is loaded
+  const waitZX = () => new Promise(r=>{
+    const t=setInterval(()=>{
+      if(window.__ZXING__){clearInterval(t); r();}
+    },50);
   });
+  await waitZX();
 
-  Quagga.onDetected(onDetected);
-}
+  if(scanning) return;
+  scanning = true;
 
-function onDetected(result){
-  const code = result?.codeResult?.code;
-  if(!code) return;
+  const { BrowserMultiFormatReader, BarcodeFormat, DecodeHintType } = window.__ZXING__;
+  const hints = new Map();
+  hints.set(DecodeHintType.POSSIBLE_FORMATS, [
+    BarcodeFormat.DATA_MATRIX,   // GS1 2D
+    BarcodeFormat.QR_CODE,       // sometimes used
+    BarcodeFormat.CODE_128,
+    BarcodeFormat.CODE_39,
+    BarcodeFormat.EAN_13,
+    BarcodeFormat.EAN_8,
+    BarcodeFormat.UPC_A,
+    BarcodeFormat.UPC_E,
+    BarcodeFormat.ITF
+  ]);
 
-  // stop quickly to avoid multiple hits
-  stopScanner();
-  $("barcode").value = code;
+  codeReader = new BrowserMultiFormatReader(hints, { delayBetweenScanAttempts: 150 });
 
-  // If NDC is blank, some products embed NDC in barcode but not always.
-  // We leave NDC manual.
+  const video = document.getElementById("scanVideo");
+
+  try{
+    const constraints = { video: { facingMode: { ideal: "environment" } } };
+    scanStream = await navigator.mediaDevices.getUserMedia(constraints);
+    video.srcObject = scanStream;
+    await video.play();
+
+    // Decode continuously from video element
+    const result = await codeReader.decodeOnceFromVideoElement(video);
+    const text = result?.getText?.() || "";
+
+    stopScanner();
+
+    // Auto-populate fields
+    handleScannedText(text);
+
+  } catch(err){
+    stopScanner();
+    alert(
+      "Scanner error: " + (err?.message || err) +
+      "\n\nIf camera won’t open: make sure you are using HTTPS (GitHub Pages link) and allow camera permission."
+    );
+  }
 }
 
 function stopScanner(){
-  if(scanning){
-    try{ Quagga.offDetected(onDetected); }catch(e){}
-    try{ Quagga.stop(); }catch(e){}
-    scanning=false;
-  }
   modal.classList.remove("open");
+  scanning = false;
+
+  try{ codeReader?.reset?.(); } catch(e){}
+  codeReader = null;
+
+  if(scanStream){
+    try{ scanStream.getTracks().forEach(t=>t.stop()); }catch(e){}
+    scanStream = null;
+  }
+}
+
+function handleScannedText(text){
+  const raw = text || "";
+  $("barcode").value = raw;
+
+  const gs1 = parseGS1(raw);
+
+  if(gs1.gtin){
+    $("gtin").value = gs1.gtin;
+    const ndcGuess = gtinToNdc(gs1.gtin);
+    if(ndcGuess && !$("ndc").value) $("ndc").value = ndcGuess;
+    if(ndcGuess) $("ndc").value = ndcGuess; // overwrite with best guess
+  }
+
+  if(gs1.lot){
+    $("lot").value = gs1.lot;
+  }
+
+  if(gs1.expYYMMDD){
+    const iso = yymmddToISODate(gs1.expYYMMDD);
+    if(iso) $("exp").value = iso;
+  }
+
+  // Nice UX: if low stock is blank, set default
+  if($("low").value === "") $("low").value = $("lowDefault").value;
+
+  // If med name blank, leave it blank (you can add later or we can integrate NDC->name lookup next)
 }
 
 document.addEventListener("click",(e)=>{
@@ -519,7 +678,16 @@ document.addEventListener("click",(e)=>{
   if(e.target?.id==="closeScan") stopScanner();
 });
 
-/*** PDF Monthly Expiration Report ***/
+function clearScan(){
+  $("barcode").value="";
+  $("gtin").value="";
+  $("ndc").value="";
+  $("lot").value="";
+  $("exp").value="";
+}
+$("clearScanBtn").addEventListener("click", clearScan);
+
+/*** Monthly PDF report ***/
 function fillMonthYear(){
   const m = $("reportMonth"), y = $("reportYear");
   const now = new Date();
@@ -551,8 +719,6 @@ function generateMonthlyPDF(){
   }).sort((a,b)=>(a.exp||"").localeCompare(b.exp||""));
 
   const monthNames = ["January","February","March","April","May","June","July","August","September","October","November","December"];
-  const title = `Raees Pharmacy – Expiration Report (${monthNames[month]} ${year})`;
-
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({orientation:"portrait", unit:"pt", format:"letter"});
 
@@ -568,8 +734,9 @@ function generateMonthlyPDF(){
 
   const rows = items.map(it => ([
     it.name || "",
+    it.vendor || "",
     it.ndc || "",
-    it.barcode || "",
+    it.gtin || "",
     it.lot || "",
     it.exp || "",
     String(Number(it.qty||0)),
@@ -578,13 +745,12 @@ function generateMonthlyPDF(){
 
   doc.autoTable({
     startY: 110,
-    head: [["Medication","NDC","Barcode","Lot","Exp","Qty","Location"]],
-    body: rows.length ? rows : [["(No items expiring this month)","","","","","",""]],
+    head: [["Medication","Vendor","NDC","GTIN","Lot","Exp","Qty","Location"]],
+    body: rows.length ? rows : [["(No items expiring this month)","","","","","","",""]],
     styles: { fontSize: 8, cellPadding: 4 },
     headStyles: { fillColor: [20, 30, 60] }
   });
 
-  // signature line
   const endY = doc.lastAutoTable.finalY + 20;
   doc.setFontSize(10);
   doc.text("Reviewed by (Name): ________________________________", 40, endY);
@@ -594,17 +760,15 @@ function generateMonthlyPDF(){
   doc.save(fname);
 }
 
-/*** Audit-ready print ***/
+/*** Audit print ***/
 function buildAuditPrint(){
   const warnDays = Math.max(1, Number($("warnDays").value || 90));
   const q = $("search").value.trim().toLowerCase();
   const filter = $("filter").value;
 
   let items = load();
-
-  // apply current search/filter (same logic as screen)
   items = items.filter(x=>{
-    const hay = `${x.name} ${x.ndc} ${x.barcode} ${x.lot} ${x.loc} ${x.notes}`.toLowerCase();
+    const hay = `${x.name} ${x.vendor} ${x.ndc} ${x.gtin} ${x.barcode} ${x.lot} ${x.loc} ${x.notes}`.toLowerCase();
     if(q && !hay.includes(q)) return false;
     const st = statusFor(x, warnDays);
     if(filter==="expired") return st.label==="EXPIRED";
@@ -615,7 +779,7 @@ function buildAuditPrint(){
 
   $("printRunDate").textContent = new Date().toLocaleString();
   $("printFilter").textContent = filter + (q ? ` + search("${q}")` : "");
-  $("printMeta").textContent = `Includes NDC / Barcode / Lot / Exp / Qty / Location. Warning window: ${warnDays} days.`;
+  $("printMeta").textContent = `Includes Vendor + NDC/GTIN + Lot/Exp + Qty/Location. Warning window: ${warnDays} days.`;
 
   const ptb = $("printTbody");
   ptb.innerHTML = "";
@@ -628,8 +792,9 @@ function buildAuditPrint(){
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td>${esc(it.name||"")}</td>
+      <td>${esc(it.vendor||"")}</td>
       <td>${esc(it.ndc||"")}</td>
-      <td>${esc(it.barcode||"")}</td>
+      <td>${esc(it.gtin||"")}</td>
       <td>${esc(it.lot||"")}</td>
       <td>${esc(it.exp||"")}</td>
       <td>${Number(it.qty||0)}</td>
@@ -638,16 +803,14 @@ function buildAuditPrint(){
     `;
     ptb.appendChild(tr);
   }
-
   if(!items.length){
     const tr = document.createElement("tr");
-    tr.innerHTML = `<td colspan="8">(No items match current filter/search)</td>`;
+    tr.innerHTML = `<td colspan="9">(No items match current filter/search)</td>`;
     ptb.appendChild(tr);
   }
-  // show print area then print
+
   document.querySelector(".print-area").style.display="block";
   window.print();
-  // hide print area after
   setTimeout(()=>{ document.querySelector(".print-area").style.display="none"; }, 500);
 }
 
@@ -660,7 +823,9 @@ $("medForm").addEventListener("submit",(e)=>{
   const item = {
     id,
     name: $("name").value.trim(),
+    vendor: $("vendor").value,
     ndc: $("ndc").value.trim(),
+    gtin: $("gtin").value.trim(),
     barcode: $("barcode").value.trim(),
     lot: $("lot").value.trim(),
     exp: $("exp").value,
@@ -670,8 +835,8 @@ $("medForm").addEventListener("submit",(e)=>{
     notes: $("notes").value.trim()
   };
 
-  if(!item.name) return alert("Medication name is required.");
-  if(!item.exp) return alert("Expiration date is required.");
+  if(!item.exp) return alert("Expiration date is required (scan GS1 2D or type it).");
+  if(!Number.isFinite(item.qty)) return alert("Quantity is required.");
   upsert(item);
   resetForm();
   render();
@@ -696,8 +861,6 @@ $("sortBtn").addEventListener("click", ()=>{
   $("sortBtn").textContent = sortMode==="exp" ? "Sort: Exp" : "Sort: Name";
   render();
 });
-
-$("clearBarcodeBtn").addEventListener("click", ()=>{ $("barcode").value=""; });
 
 $("pdfBtn").addEventListener("click", generateMonthlyPDF);
 $("auditPrintBtn").addEventListener("click", buildAuditPrint);
